@@ -11,7 +11,8 @@ After murder kills someone he will glow and you can see his nickname in chat.
 
 ## Screenshots
 ![First Screen](/Screenshots/1.png?raw=true "Enabling mod")
-
+![Second Screen](/Screenshots/2.png?raw=true "Murder glowing")
+![Third Screen](/Screenshots/3.png?raw=true "Murder glowing")
 ## License
 
 The source code for the mode is licensed under the MIT license, which you can find in the LICENSE file.
