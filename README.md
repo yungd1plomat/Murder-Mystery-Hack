@@ -10,7 +10,7 @@ Press M to activate or deactivate mod.
 After murder kills someone he will glow and you can see his nickname in chat.
 
 ## Screenshots
-
+![First Screen](/Screenshots/1.png?raw=true "Enabling mod")
 
 ## License
 
