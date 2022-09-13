@@ -38,12 +38,16 @@ import org.lwjgl.glfw.GLFW;
 import org.lwjgl.system.linux.XClientMessageEvent;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class MurderEsp {
-    private KeyBinding solver;
+    private KeyBinding mSolver;
+
+    private KeyBinding nSolver;
 
     private boolean isEnabled;
 
@@ -55,10 +59,13 @@ public class MurderEsp {
 
     private boolean inGame;
 
+    private boolean followEnabled;
+
     private ArrayList<Item> murderItems;
-    
+
     private ArrayList<Item> detectiveItems;
-    
+
+
     public void Initialize()
     {
         detectiveItems = new ArrayList<Item>();
@@ -102,18 +109,15 @@ public class MurderEsp {
         murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:glistering_melon_slice"));
         murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:book"));
 
-        murders = new ArrayList<AbstractClientPlayerEntity>();
+        murders = new ArrayList<>();
         detectives = new ArrayList<>();
         isEnabled = false;
         inGame = false;
-        solver = new KeyBinding("Toggle MurderMysterySolver",  GLFW.GLFW_KEY_M, "Murder and mystery mod");
+        followEnabled = false;
+        mSolver = new KeyBinding("Toggle MurderMysterySolver",  GLFW.GLFW_KEY_M, "Murder and mystery mod");
+        nSolver = new KeyBinding("Toggle followe",  GLFW.GLFW_KEY_N, "Murder and mystery mod");
         ClientTickEvents.END_CLIENT_TICK.register(this::Tick);
-        ServerMessageEvents.GAME_MESSAGE.register(this::GameMessage);
         WorldRenderEvents.AFTER_ENTITIES.register(this::onWorldRender);
-    }
-
-    private void GameMessage(MinecraftServer minecraftServer, Text text, boolean b) {
-        SendMessage(text.toString(), TextType.Warning);
     }
 
     private void onWorldRender(WorldRenderContext context) {
@@ -129,7 +133,8 @@ public class MurderEsp {
         RenderUtil.prep();
         for (AbstractClientPlayerEntity murder : murders) {
             if (murder.isAlive() &&
-                !murder.isSpectator())
+                !murder.isSpectator() &&
+                !murder.isInvisible())
             {
                 RenderUtil.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
             }
@@ -160,10 +165,15 @@ public class MurderEsp {
 
     private void InGameChanged()
     {
-        if (!inGame && murders.stream().count() > 0) murders.clear();
-        if (!inGame && detectives.stream().count() > 0) detectives.clear();
         String text = inGame ? "Found new game session.." : "Game ended..";
         SendMessage(text, TextType.Info);
+        if (!inGame && followEnabled && isEnabled)
+        {
+            if (murders.stream().count() > 0) murders.clear();
+            if (detectives.stream().count() > 0) detectives.clear();
+            MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
+            StartNewGame();
+        }
     }
 
     private void SetInGame(boolean bool)
@@ -173,20 +183,53 @@ public class MurderEsp {
             InGameChanged();
         }
     }
+    private void waitTime(int MS) {
+        try
+        {
+            TimeUnit.MILLISECONDS.sleep(MS);
+        }
+        catch(InterruptedException ex)
+        {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void StartNewGame()
+    {
+        new Thread(() -> {
+            do {
+                SendMessage("Going to play lobby..", TextType.Info);
+                MinecraftClient.getInstance().player.sendChatMessage("/play murder_double_up", Text.empty());
+                waitTime(4000);
+            } while(MinecraftClient.getInstance().world.getPlayers().stream().count() < 8);
+        }).start();
+    }
 
     private void Tick(MinecraftClient client) {
         if (chat == null) {
             chat = MinecraftClient.getInstance().inGameHud.getChatHud();
         }
-        if (solver.wasPressed()) {
+        if (mSolver.wasPressed()) {
             isEnabled = !isEnabled;
             String msg = isEnabled ? "Enabled" : "Disabled";
             SendMessage(msg, TextType.Info);
         }
-        if (client == null ||
-                client.world == null) {
+        if (client == null || client.world == null) {
             SetInGame(false);
             return;
+        }
+        if (client.player.isInvisible()) {
+            MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
+            StartNewGame();
+            return;
+        }
+        if (nSolver.wasPressed())
+        {
+            followEnabled = !followEnabled;
+            String msg = followEnabled ? "Enabled follower" : "Disabled follower";
+            SendMessage(msg, TextType.Info);
+            client.player.sendChatMessage("#stop", Text.empty());
+            if (followEnabled && isEnabled) StartNewGame();
         }
         Scoreboard scoreboard = client.world.getScoreboard();
         if (scoreboard == null) {
@@ -213,6 +256,8 @@ public class MurderEsp {
                 {
                     SendMessage("Found new murder " + player.getGameProfile().getName(), TextType.Info);
                     murders.add(player);
+                    client.player.sendChatMessage("#stop", Text.empty());
+                    client.player.sendChatMessage("#follow player " + String.join(" ", murders.stream().map(x -> x.getGameProfile().getName()).toList()), Text.empty());
                 }
                 if (detectiveItems.contains(item) && !detectives.contains(player))
                 {
