@@ -3,11 +3,14 @@ package net.d1plomat.murdermod;
 
 import net.d1plomat.murdermod.utils.ItemUtils;
 import net.d1plomat.murdermod.utils.RenderUtil;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+import net.fabricmc.fabric.api.message.v1.ServerMessageDecoratorEvent;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
+import net.fabricmc.fabric.impl.event.lifecycle.ClientLifecycleEventsImpl;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -32,9 +35,11 @@ import net.minecraft.util.InvalidIdentifierException;
 import net.minecraft.util.math.Matrix4f;
 import net.minecraft.util.registry.Registry;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.linux.XClientMessageEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class MurderEsp {
@@ -96,13 +101,16 @@ public class MurderEsp {
         inGame = false;
         solver = new KeyBinding("Toggle MurderMysterySolver",  GLFW.GLFW_KEY_M, "Murder and mystery mod");
         ClientTickEvents.END_CLIENT_TICK.register(this::Tick);
-        //ServerMessageEvents.CHAT_MESSAGE.register(this::ReceiveMessage);
+        ServerMessageEvents.GAME_MESSAGE.register(this::GameMessage);
         WorldRenderEvents.AFTER_ENTITIES.register(this::onWorldRender);
+    }
+
+    private void GameMessage(MinecraftServer minecraftServer, Text text, boolean b) {
+        SendMessage(text.toString(), TextType.Warning);
     }
 
     private void onWorldRender(WorldRenderContext context) {
         if (!isEnabled || !inGame)  {
-            if (!inGame && murders.stream().count() > 0) murders.clear();
             return;
         }
         Tessellator tessellator = Tessellator.getInstance();
@@ -113,7 +121,9 @@ public class MurderEsp {
         stack.push();
         RenderUtil.prep();
         for (AbstractClientPlayerEntity murder : murders) {
-            if (!murder.isDead() && !murder.isSpectator()) {
+            if (!murder.isDead() &&
+                    !murder.isSpectator())
+            {
                 RenderUtil.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
             }
         }
@@ -134,6 +144,21 @@ public class MurderEsp {
         chat.addMessage(Text.literal(prefix + text));
     }
 
+    private void InGameChanged()
+    {
+        if (!inGame && murders.stream().count() > 0) murders.clear();
+        String text = inGame ? "Found new game session.." : "Game ended..";
+        SendMessage(text, TextType.Info);
+    }
+
+    private void SetInGame(boolean bool)
+    {
+        if (bool != inGame) {
+            inGame = !inGame;
+            InGameChanged();
+        }
+    }
+
     private void Tick(MinecraftClient client) {
         if (chat == null) {
             chat = MinecraftClient.getInstance().inGameHud.getChatHud();
@@ -144,30 +169,26 @@ public class MurderEsp {
             SendMessage(msg, TextType.Info);
         }
         if (client == null ||
-            client.world == null) {
-            inGame = false;
+                client.world == null) {
+            SetInGame(false);
             return;
         }
         Scoreboard scoreboard = client.world.getScoreboard();
         if (scoreboard == null) {
-            inGame = false;
+            SetInGame(false);
             return;
         }
         ScoreboardObjective objective = scoreboard.getObjectiveForSlot(1);
         if (objective == null) {
-            inGame = false;
+            SetInGame(false);
             return;
         }
         String name = objective.getName();
         if (!name.equals("MurderMystery")) {
-            inGame = false;
+            SetInGame(false);
             return;
         }
-        if (!inGame)
-        {
-            SendMessage("Found new game session", TextType.Info);
-            inGame = true;
-        }
+        SetInGame(true);
         if (!isEnabled) return;
         var players = client.world.getPlayers();
         for (AbstractClientPlayerEntity player : players) {
@@ -180,9 +201,5 @@ public class MurderEsp {
                 }
             }
         }
-    }
-
-    private void ReceiveMessage(SignedMessage signedMessage, ServerPlayerEntity serverPlayerEntity, MessageType.Parameters parameters) {
-
     }
 }
