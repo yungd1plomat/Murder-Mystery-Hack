@@ -51,52 +51,59 @@ public class MurderEsp {
 
     private List<AbstractClientPlayerEntity> murders;
 
+    private List<AbstractClientPlayerEntity> detectives;
+
     private boolean inGame;
 
-    private ArrayList<Item> items;
-
+    private ArrayList<Item> murderItems;
+    
+    private ArrayList<Item> detectiveItems;
+    
     public void Initialize()
     {
-        items = new ArrayList<Item>();
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:iron_sword"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:stone_sword"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:iron_shovel"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:stick"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:wooden_axe"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:wooden_sword"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:dead_bush"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:stone_shovel"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:blaze_rod"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_shovel"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:quartz"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:pumpkin_pie"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:golden_pickaxe"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:apple"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:name_tag"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:sponge"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:carrot_on_a_stick"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:bone"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:carrot"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:golden_carrot"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:cookie"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_axe"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:rose_bush"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:prismarine_shard"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:cooked_beef"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:nether_brick"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:cooked_chicken"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:music_disk_blocks"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:golden_sword"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_sword"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_hoe"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:shears"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:salmon"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:red_dye"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:oak_boat"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:glistering_melon_slice"));
-        items.add(ItemUtils.getItemFromNameOrID("minecraft:book"));
+        detectiveItems = new ArrayList<Item>();
+        detectiveItems.add(ItemUtils.getItemFromNameOrID("minecraft:bow"));
+        murderItems = new ArrayList<Item>();
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:iron_sword"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:stone_sword"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:iron_shovel"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:stick"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:wooden_axe"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:wooden_sword"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:dead_bush"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:stone_shovel"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:blaze_rod"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_shovel"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:quartz"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:pumpkin_pie"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:golden_pickaxe"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:apple"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:name_tag"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:sponge"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:carrot_on_a_stick"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:bone"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:carrot"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:golden_carrot"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:cookie"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_axe"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:rose_bush"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:prismarine_shard"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:cooked_beef"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:nether_brick"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:cooked_chicken"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:music_disk_blocks"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:golden_sword"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_sword"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:diamond_hoe"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:shears"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:salmon"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:red_dye"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:oak_boat"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:glistering_melon_slice"));
+        murderItems.add(ItemUtils.getItemFromNameOrID("minecraft:book"));
 
         murders = new ArrayList<AbstractClientPlayerEntity>();
+        detectives = new ArrayList<>();
         isEnabled = false;
         inGame = false;
         solver = new KeyBinding("Toggle MurderMysterySolver",  GLFW.GLFW_KEY_M, "Murder and mystery mod");
@@ -121,10 +128,17 @@ public class MurderEsp {
         stack.push();
         RenderUtil.prep();
         for (AbstractClientPlayerEntity murder : murders) {
-            if (!murder.isDead() &&
-                    !murder.isSpectator())
+            if (murder.isAlive() &&
+                !murder.isSpectator())
             {
                 RenderUtil.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
+            }
+        }
+        for (AbstractClientPlayerEntity detective : detectives) {
+            if (detective.isAlive() &&
+                !detective.isSpectator())
+            {
+                RenderUtil.draw3dBox(buffer, matrix, detective.getBoundingBox(), 0, 145, 255, 50);
             }
         }
         tessellator.draw();
@@ -147,6 +161,7 @@ public class MurderEsp {
     private void InGameChanged()
     {
         if (!inGame && murders.stream().count() > 0) murders.clear();
+        if (!inGame && detectives.stream().count() > 0) detectives.clear();
         String text = inGame ? "Found new game session.." : "Game ended..";
         SendMessage(text, TextType.Info);
     }
@@ -192,12 +207,17 @@ public class MurderEsp {
         if (!isEnabled) return;
         var players = client.world.getPlayers();
         for (AbstractClientPlayerEntity player : players) {
-            if (client.player != player) {
+            if (client.player != player) { //
                 Item item = player.getInventory().getMainHandStack().getItem();
-                if (items.contains(item) && !murders.contains(player))
+                if (murderItems.contains(item) && !murders.contains(player))
                 {
                     SendMessage("Found new murder " + player.getGameProfile().getName(), TextType.Info);
                     murders.add(player);
+                }
+                if (detectiveItems.contains(item) && !detectives.contains(player))
+                {
+                    SendMessage("Found player with bow " + player.getGameProfile().getName(), TextType.Info);
+                    detectives.add(player);
                 }
             }
         }
