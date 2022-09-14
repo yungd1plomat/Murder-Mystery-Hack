@@ -254,6 +254,7 @@ public class MurderEsp {
                 if (MinecraftClient.getInstance().player.getInventory().contains(item.getDefaultStack())) {
                     isMurder = true;
                     MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
+                    murders.clear();
                     Notify("\uD83D\uDD2A You're murder!!");
                 }
             });
