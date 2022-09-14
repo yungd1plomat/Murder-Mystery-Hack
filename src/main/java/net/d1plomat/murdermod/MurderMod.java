@@ -19,6 +19,5 @@ public class MurderMod implements ModInitializer {
 		// Proceed with mild caution.
 		esp = new MurderEsp();
 		esp.Initialize();
-		LOGGER.info("Hello Fabric world!");
 	}
 }
