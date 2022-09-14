@@ -163,40 +163,38 @@ public class MurderEsp {
         if (!isEnabled || !inGame)  {
             return;
         }
-        Tessellator tessellator = Tessellator.getInstance();
-        BufferBuilder buffer = tessellator.getBuffer();
-        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-        MatrixStack stack = context.matrixStack();
-        Matrix4f matrix = stack.peek().getPositionMatrix();
-        stack.push();
-        RenderUtils.prep();
-        if (!isMurder) {
-            for (AbstractClientPlayerEntity murder : murders) {
-                if (murder.isAlive() &&
-                        !murder.isSpectator() &&
-                        !murder.isInvisible()) {
-                    RenderUtils.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
-                }
-                else
-                {
-                    murders.remove(murder);
-                    if (murders.stream().count() == 0)
-                    {
-                        MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
+        try {
+            Tessellator tessellator = Tessellator.getInstance();
+            BufferBuilder buffer = tessellator.getBuffer();
+            buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+            MatrixStack stack = context.matrixStack();
+            Matrix4f matrix = stack.peek().getPositionMatrix();
+            stack.push();
+            RenderUtils.prep();
+            if (!isMurder) {
+                for (AbstractClientPlayerEntity murder : murders) {
+                    if (!murder.isSpectator() && !murder.isInvisible()) {
+                        RenderUtils.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
+                    } else {
+                        murders.remove(murder);
+                        if (murders.stream().count() == 0) {
+                            MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
+                        }
                     }
                 }
             }
-        }
-        for (AbstractClientPlayerEntity detective : detectives) {
-            if (detective.isAlive() &&
-                !detective.isSpectator())
-            {
-                RenderUtils.draw3dBox(buffer, matrix, detective.getBoundingBox(), 0, 145, 255, 50);
+            for (AbstractClientPlayerEntity detective : detectives) {
+                if (!detective.isSpectator() && !detective.isInvisible()) {
+                    RenderUtils.draw3dBox(buffer, matrix, detective.getBoundingBox(), 0, 145, 255, 50);
+                }
             }
+            tessellator.draw();
+            RenderUtils.rev();
+            stack.pop();
+        } catch (Exception ex)
+        {
+            SendMessage(ex.getMessage(), TextType.Error);
         }
-        tessellator.draw();
-        RenderUtils.rev();
-        stack.pop();
     }
 
     private void SendMessage(String text, TextType type)
@@ -211,43 +209,32 @@ public class MurderEsp {
         chat.addMessage(Text.literal(prefix + text));
     }
 
-    private void InGameChanged()
-    {
+    private void InGameChanged() {
         isDetective = false;
         isMurder = false;
         String text = inGame ? "Found new game session.." : "Game ended..";
         SendMessage(text, TextType.Info);
-        if (!inGame && followEnabled && isEnabled)
-        {
+        if (!inGame && followEnabled && isEnabled) {
             if (murders.stream().count() > 0) murders.clear();
             if (detectives.stream().count() > 0) detectives.clear();
-            MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
             StartNewGame();
+            return;
         }
-        if (inGame)
-        {
-            followPlayers();
-            CheckForRole();
-        }
+        followPlayers();
+        CheckForRole();
     }
 
-    private void followPlayers()
-    {
-        new Thread(() -> {
-            MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
-            waitTime(1000);
-            MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
-        });
-    }
     private void CheckForRole()
     {
         new Thread(() -> {
             waitTime(15000);
+            SendMessage("Checking current role..", TextType.Info);
             detectiveItems.forEach(item -> {
                 if (MinecraftClient.getInstance().player.getInventory().contains(item.getDefaultStack())) {
                     isDetective = true;
                     MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
                     Notify("\uD83D\uDD75 You're detective!!");
+                    return;
                 }
             });
             murderItems.forEach(item -> {
@@ -255,7 +242,8 @@ public class MurderEsp {
                     isMurder = true;
                     MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
                     murders.clear();
-                    Notify("\uD83D\uDD2A You're murder!!");
+                    Notify("\uD83D\uDDE1 You're murder!!");
+                    return;
                 }
             });
         }).start();
@@ -322,10 +310,15 @@ public class MurderEsp {
     {
         new Thread(() -> {
             MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
-            waitTime(1000);
+            waitTime(1500);
             MinecraftClient.getInstance().player.sendChatMessage("#follow player " + String.join(" ", murders.stream().map(x -> x.getGameProfile().getName()).toList()), Text.empty());
         }).start();
 
+    }
+
+    private void followPlayers()
+    {
+        MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
     }
 
     private void Tick(MinecraftClient client) {
@@ -336,72 +329,70 @@ public class MurderEsp {
             SetInGame(false);
             return;
         }
-        if (mSolver.wasPressed()) {
-            if (!CheckConfigLoaded()) {
-                SendMessage("Set chat id and token with /config command", TextType.Error);
+        try {
+            if (mSolver.wasPressed()) {
+                if (!CheckConfigLoaded()) {
+                    SendMessage("Set chat id and token with /config command", TextType.Error);
+                    return;
+                }
+                isEnabled = !isEnabled;
+                String msg = isEnabled ? "Enabled" : "Disabled";
+                SendMessage(msg, TextType.Info);
+            }
+            if (nSolver.wasPressed()) {
+                if (!CheckConfigLoaded()) {
+                    SendMessage("Set chat id and token with /config command", TextType.Error);
+                    return;
+                }
+                followEnabled = !followEnabled;
+                String msg = followEnabled ? "Enabled follower" : "Disabled follower";
+                SendMessage(msg, TextType.Info);
+                if (followEnabled) {
+                    StartNewGame();
+                } else {
+                    MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
+                }
+            }
+            if (client.player.isInvisible() && followEnabled && !inLobby) {
+                SetInGame(false);
                 return;
             }
-            isEnabled = !isEnabled;
-            String msg = isEnabled ? "Enabled" : "Disabled";
-            SendMessage(msg, TextType.Info);
-        }
-        if (nSolver.wasPressed())
-        {
-            if (!CheckConfigLoaded()) {
-                SendMessage("Set chat id and token with /config command", TextType.Error);
+            Scoreboard scoreboard = client.world.getScoreboard();
+            if (scoreboard == null) {
+                SetInGame(false);
                 return;
             }
-            followEnabled = !followEnabled;
-            String msg = followEnabled ? "Enabled follower" : "Disabled follower";
-            SendMessage(msg, TextType.Info);
-            if (followEnabled)
-            {
-                StartNewGame();
+            ScoreboardObjective objective = scoreboard.getObjectiveForSlot(1);
+            if (objective == null) {
+                SetInGame(false);
+                return;
             }
-            else
-            {
-                MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
+            String name = objective.getName();
+            if (!name.equals("MurderMystery")) {
+                SetInGame(false);
+                return;
             }
-        }
-        if (client.player.isInvisible() && followEnabled && !inGame) {
-            StartNewGame();
-            return;
-        }
-        Scoreboard scoreboard = client.world.getScoreboard();
-        if (scoreboard == null) {
-            SetInGame(false);
-            return;
-        }
-        ScoreboardObjective objective = scoreboard.getObjectiveForSlot(1);
-        if (objective == null) {
-            SetInGame(false);
-            return;
-        }
-        String name = objective.getName();
-        if (!name.equals("MurderMystery")) {
-            SetInGame(false);
-            return;
-        }
-        SetInGame(true);
-        if (!isEnabled) return;
-        var players = client.world.getPlayers();
-        for (AbstractClientPlayerEntity player : players) {
-            if (client.player != player) {
-                Item item = player.getInventory().getMainHandStack().getItem();
-                if (murderItems.contains(item) && !murders.contains(player) && !isMurder && !isDetective)
-                {
-                    SendMessage("Found new murder " + player.getGameProfile().getName(), TextType.Info);
-                    murders.add(player);
-                    if (followEnabled) {
-                        followMurders();
+            SetInGame(true);
+            if (!isEnabled) return;
+            var players = client.world.getPlayers();
+            for (AbstractClientPlayerEntity player : players) {
+                if (client.player != player) {
+                    Item item = player.getInventory().getMainHandStack().getItem();
+                    if (murderItems.contains(item) && !murders.contains(player) && !isMurder) {
+                        SendMessage("Found new murder " + player.getGameProfile().getName(), TextType.Info);
+                        murders.add(player);
+                        if (followEnabled) {
+                            followMurders();
+                        }
+                    }
+                    if (detectiveItems.contains(item) && !detectives.contains(player)) {
+                        SendMessage("Found player with bow " + player.getGameProfile().getName(), TextType.Info);
+                        detectives.add(player);
                     }
                 }
-                if (detectiveItems.contains(item) && !detectives.contains(player))
-                {
-                    SendMessage("Found player with bow " + player.getGameProfile().getName(), TextType.Info);
-                    detectives.add(player);
-                }
             }
+        } catch (Exception ex) {
+            SendMessage(ex.getMessage(), TextType.Error);
         }
     }
 }
