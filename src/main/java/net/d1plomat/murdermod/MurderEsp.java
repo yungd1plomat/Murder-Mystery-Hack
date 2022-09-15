@@ -71,8 +71,11 @@ public class MurderEsp {
 
     private boolean inLobby;
 
+    private Object locker;
+
     public void Initialize()
     {
+        locker = new Object();
         httpClient = HttpClient.newHttpClient();
         config = ConfigUtils.LoadConfig();
         detectiveItems = new ArrayList<Item>();
@@ -176,9 +179,11 @@ public class MurderEsp {
                     if (!murder.isSpectator() && !murder.isInvisible()) {
                         RenderUtils.draw3dBox(buffer, matrix, murder.getBoundingBox(), 230, 0, 255, 50);
                     } else {
-                        murders.remove(murder);
-                        if (murders.stream().count() == 0) {
-                            MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
+                        synchronized (locker) {
+                            murders.remove(murder);
+                            if (murders.stream().count() == 0) {
+                                MinecraftClient.getInstance().player.sendChatMessage("#follow players", Text.empty());
+                            }
                         }
                     }
                 }
@@ -215,35 +220,47 @@ public class MurderEsp {
         String text = inGame ? "Found new game session.." : "Game ended..";
         SendMessage(text, TextType.Info);
         if (!inGame && followEnabled && isEnabled) {
-            if (murders.stream().count() > 0) murders.clear();
-            if (detectives.stream().count() > 0) detectives.clear();
+            if (murders.stream().count() > 0) {
+                synchronized (locker) {
+                    murders.clear();
+                }
+            }
+            if (detectives.stream().count() > 0) {
+                synchronized (locker) {
+                    detectives.clear();
+                }
+            }
             StartNewGame();
             return;
         }
-        followPlayers();
-        CheckForRole();
+        if (followEnabled && inGame && isEnabled) {
+            followPlayers();
+            CheckForRole();
+        }
     }
 
     private void CheckForRole()
     {
         new Thread(() -> {
-            waitTime(15000);
+            waitTime(16500);
             SendMessage("Checking current role..", TextType.Info);
             detectiveItems.forEach(item -> {
                 if (MinecraftClient.getInstance().player.getInventory().contains(item.getDefaultStack())) {
-                    isDetective = true;
+                    synchronized (locker) {
+                        isDetective = true;
+                    }
                     MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
-                    Notify("\uD83D\uDD75 You're detective!!");
-                    return;
+                    Notify("You're detective!!");
                 }
             });
             murderItems.forEach(item -> {
                 if (MinecraftClient.getInstance().player.getInventory().contains(item.getDefaultStack())) {
-                    isMurder = true;
+                    synchronized (locker) {
+                        isMurder = true;
+                    }
                     MinecraftClient.getInstance().player.sendChatMessage("#stop", Text.empty());
                     murders.clear();
-                    Notify("\uD83D\uDDE1 You're murder!!");
-                    return;
+                    Notify("You're murder!!");
                 }
             });
         }).start();
@@ -252,7 +269,9 @@ public class MurderEsp {
     private void SetInGame(boolean bool)
     {
         if (bool != inGame) {
-            inGame = !inGame;
+            synchronized (locker) {
+                inGame = !inGame;
+            }
             InGameChanged();
         }
     }
@@ -270,7 +289,9 @@ public class MurderEsp {
 
     private void StartNewGame()
     {
-        inLobby = true;
+        synchronized (locker) {
+            inLobby = true;
+        }
         new Thread(() -> {
             do {
                 SendMessage("Going to lobby..", TextType.Info);
@@ -278,7 +299,9 @@ public class MurderEsp {
                 MinecraftClient.getInstance().player.sendChatMessage("/play murder_double_up", Text.empty());
                 waitTime(6000);
             } while(MinecraftClient.getInstance().world.getPlayers().stream().count() < 8);
-            inLobby = false;
+            synchronized (locker) {
+                inLobby = false;
+            }
         }).start();
     }
 
@@ -380,14 +403,18 @@ public class MurderEsp {
                     Item item = player.getInventory().getMainHandStack().getItem();
                     if (murderItems.contains(item) && !murders.contains(player) && !isMurder) {
                         SendMessage("Found new murder " + player.getGameProfile().getName(), TextType.Info);
-                        murders.add(player);
-                        if (followEnabled) {
+                        synchronized (locker) {
+                            murders.add(player);
+                        }
+                        if (followEnabled && !isDetective) {
                             followMurders();
                         }
                     }
                     if (detectiveItems.contains(item) && !detectives.contains(player)) {
                         SendMessage("Found player with bow " + player.getGameProfile().getName(), TextType.Info);
-                        detectives.add(player);
+                        synchronized (locker) {
+                            detectives.add(player);
+                        }
                     }
                 }
             }
